@@ -21,7 +21,7 @@ def set_seed(seed=42):
 
 # 2. DATA PREPARATION
 def load():
-    data = pd.read_csv('1assign/insurance.csv')
+    data = pd.read_csv('1assign/Deep-Learning/1assign/insurance.csv')
 
     data['sex'] = data['sex'].map({'female': 0, 'male': 1})
     data['smoker'] = data['smoker'].map({'no': 0, 'yes': 1})
@@ -196,7 +196,7 @@ if __name__ == "__main__":
     ax1.grid(True, alpha=0.3)
 
     # Plot 2
-    df = pd.read_csv('1assign/insurance.csv')
+    df = pd.read_csv('1assign/Deep-Learning/1assign/insurance.csv')
     smokers = df[df['smoker'] == 'yes']
     nonSmokers = df[df['smoker'] == 'no']
     
@@ -223,6 +223,16 @@ if __name__ == "__main__":
         ax3.text(bar.get_x() + bar.get_width()/2, yval + 50, f'${yval:,.0f}', ha='center', va='bottom', fontweight='bold')
 
     # Show the plots
-    plt.tight_layout()
-    plt.show()
+    plt.figure(1)
+# ... código del primer gráfico ...
+plt.savefig('grafico_1_entrenamiento.png')
+
+plt.figure(2)
+# ... código del segundo gráfico ...
+plt.savefig('grafico_2_optuna.png')
+
+plt.figure(3)
+# ... código del tercer gráfico ...
+plt.savefig('grafico_3_comparativa.png')
+    
 
