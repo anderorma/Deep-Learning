@@ -178,3 +178,183 @@ histories = {}
 for name, model in models.items():
     print(f"\n  ── Training: {name} ──")
     histories[name] = train_model(model, X_train, y_train)
+
+
+# ==============================================================================
+# 5. RESULTS
+# ==============================================================================
+
+print("\n[ 5 / 7 ]  RESULTS SUMMARY")
+print("-" * 60)
+print(f"\n  {'Model':<16} {'Test Accuracy':>14} {'Test Loss':>12}")
+print(f"  {'-'*44}")
+
+results = {}
+for name, model in models.items():
+    loss, acc = model.evaluate(X_test, y_test, verbose=0)
+    results[name] = {'accuracy': acc, 'loss': loss}
+    print(f"  {name:<16} {acc:>13.4f} {loss:>12.4f}")
+
+
+# ==============================================================================
+# 6. VISUALIZATIONS
+# ==============================================================================
+
+print("\n[ 6 / 7 ]  VISUALIZATIONS")
+print("-" * 60)
+
+# --- Validation curves ---
+print("\n  Plotting validation curves...")
+fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+for name, history in histories.items():
+    axes[0].plot(history.history['val_accuracy'], label=name)
+    axes[1].plot(history.history['val_loss'],     label=name)
+
+axes[0].set_title('Validation Accuracy — All Models')
+axes[0].set_xlabel('Epoch')
+axes[0].set_ylabel('Accuracy')
+axes[0].legend()
+axes[0].grid(True, alpha=0.3)
+
+axes[1].set_title('Validation Loss — All Models')
+axes[1].set_xlabel('Epoch')
+axes[1].set_ylabel('Loss')
+axes[1].legend()
+axes[1].grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# --- ROC Curves ---
+print("\n  Plotting ROC curves...")
+plt.figure(figsize=(9, 7))
+for name, model in models.items():
+    y_pred = model.predict(X_test, verbose=0).ravel()
+    fpr, tpr, _ = roc_curve(y_test, y_pred)
+    roc_auc = auc(fpr, tpr)
+    plt.plot(fpr, tpr, label=f'{name} (AUC = {roc_auc:.3f})')
+
+plt.plot([0, 1], [0, 1], 'k--', label='Random Guess')
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('ROC Curves — All Models')
+plt.legend(loc="lower right")
+plt.grid(True, alpha=0.3)
+plt.show()
+
+# --- Confusion Matrices ---
+print("\n  Plotting confusion matrices...")
+fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+axes = axes.flatten()
+for i, (name, model) in enumerate(models.items()):
+    y_pred_classes = (model.predict(X_test, verbose=0) > 0.5).astype(int)
+    cm = confusion_matrix(y_test, y_pred_classes)
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=axes[i], cbar=False)
+    axes[i].set_title(f'Confusion Matrix: {name}')
+    axes[i].set_xlabel('Predicted Label')
+    axes[i].set_ylabel('True Label')
+    axes[i].set_xticklabels(['Negative', 'Positive'])
+    axes[i].set_yticklabels(['Negative', 'Positive'])
+plt.tight_layout()
+plt.show()
+
+# --- Accuracy Bar Chart ---
+print("\n  Plotting accuracy bar chart...")
+names  = list(results.keys())
+accs   = [results[n]['accuracy'] for n in names]
+colors = ['steelblue', 'mediumseagreen', 'tomato', 'mediumpurple']
+
+plt.figure(figsize=(9, 5))
+bars = plt.bar(names, accs, color=colors, edgecolor='white', width=0.5)
+plt.ylim(min(accs) - 0.02, max(accs) + 0.02)
+plt.title('Test Accuracy Comparison — All Models')
+plt.ylabel('Accuracy')
+plt.grid(True, alpha=0.3, axis='y')
+for bar, acc in zip(bars, accs):
+    plt.text(
+        bar.get_x() + bar.get_width() / 2,
+        bar.get_height() + 0.001,
+        f'{acc:.4f}', ha='center', va='bottom', fontweight='bold'
+    )
+plt.tight_layout()
+plt.show()
+
+
+# ==============================================================================
+# 7. IMPROVEMENT — LSTM & Bi-LSTM with EMBEDDING_DIM=64
+# ==============================================================================
+
+print("\n[ 7 / 7 ]  IMPROVEMENT EXPERIMENT — EMBEDDING DIM 32 vs 64")
+print("-" * 60)
+print("\n  Hypothesis: LSTM instability may be caused by insufficient")
+print("  embedding dimensions. Re-training LSTM & Bi-LSTM with dim=64.\n")
+
+EMBEDDING_DIM_V2 = 64
+
+models_v2 = {
+    "LSTM_64"    : build_lstm_model(embedding_dim=EMBEDDING_DIM_V2),
+    "Bi-LSTM_64" : build_bidirectional_lstm_model(embedding_dim=EMBEDDING_DIM_V2)
+}
+
+print(f"\n  {'Model':<16} {'Embedding dim':>14} {'Trainable params':>18}")
+print(f"  {'-'*50}")
+for name, model in models_v2.items():
+    model.build(input_shape=(None, MAX_LENGTH))
+    print(f"  {name:<16} {EMBEDDING_DIM_V2:>14} {model.count_params():>18,}")
+
+histories_v2 = {}
+for name, model in models_v2.items():
+    print(f"\n  ── Training: {name} (embedding_dim=64) ──")
+    histories_v2[name] = train_model(model, X_train, y_train)
+
+print(f"\n  {'Model':<16} {'Test Accuracy':>14} {'Test Loss':>12}")
+print(f"  {'-'*44}")
+
+results_v2 = {}
+for name, model in models_v2.items():
+    loss, acc = model.evaluate(X_test, y_test, verbose=0)
+    results_v2[name] = {'accuracy': acc, 'loss': loss}
+    print(f"  {name:<16} {acc:>13.4f} {loss:>12.4f}")
+
+# --- Comparison: dim=32 vs dim=64 ---
+print("\n  Plotting 32 vs 64 comparison...")
+fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+
+axes[0].plot(histories["LSTM"].history['val_accuracy'],       label='LSTM (dim=32)',    linestyle='--', color='tomato')
+axes[0].plot(histories_v2["LSTM_64"].history['val_accuracy'], label='LSTM (dim=64)',    linestyle='-',  color='tomato')
+axes[0].plot(histories["Bi-LSTM"].history['val_accuracy'],       label='Bi-LSTM (dim=32)', linestyle='--', color='mediumpurple')
+axes[0].plot(histories_v2["Bi-LSTM_64"].history['val_accuracy'], label='Bi-LSTM (dim=64)', linestyle='-',  color='mediumpurple')
+axes[0].set_title('Validation Accuracy — Embedding dim 32 vs 64')
+axes[0].set_xlabel('Epoch')
+axes[0].set_ylabel('Accuracy')
+axes[0].legend()
+axes[0].grid(True, alpha=0.3)
+
+all_names  = ['LSTM\n(dim=32)', 'LSTM\n(dim=64)', 'Bi-LSTM\n(dim=32)', 'Bi-LSTM\n(dim=64)']
+all_accs   = [
+    results["LSTM"]['accuracy'],
+    results_v2["LSTM_64"]['accuracy'],
+    results["Bi-LSTM"]['accuracy'],
+    results_v2["Bi-LSTM_64"]['accuracy']
+]
+bar_colors = ['tomato', 'salmon', 'mediumpurple', 'plum']
+bars = axes[1].bar(all_names, all_accs, color=bar_colors, edgecolor='white', width=0.5)
+axes[1].set_ylim(min(all_accs) - 0.02, max(all_accs) + 0.02)
+axes[1].set_title('Test Accuracy — Embedding dim 32 vs 64')
+axes[1].set_ylabel('Accuracy')
+axes[1].grid(True, alpha=0.3, axis='y')
+for bar, acc in zip(bars, all_accs):
+    axes[1].text(
+        bar.get_x() + bar.get_width() / 2,
+        bar.get_height() + 0.001,
+        f'{acc:.4f}', ha='center', va='bottom', fontweight='bold'
+    )
+
+plt.tight_layout()
+plt.show()
+
+print("\n" + "=" * 60)
+print("   EXPERIMENT COMPLETE")
+print("=" * 60)
